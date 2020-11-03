@@ -53,7 +53,7 @@ mod light_validation;
 mod receipt;
 mod types;
 
-use contracts::{AccountIdWrapper, Contract, ContractId, DATA_PLAZA, BALANCE, ASSETS, SYSTEM, WEB3_ANALYTICS, HELLO_WORLD};
+use contracts::{AccountIdWrapper, Contract, ContractId, DATA_PLAZA, BALANCE, ASSETS, SYSTEM, WEB3_ANALYTICS, HELLO_WORLD, SECRET_CODE};
 use cryptography::{ecdh, aead};
 use light_validation::AuthoritySetChange;
 use receipt::{TransactionStatus, TransactionReceipt, ReceiptStore, Request, Response};
@@ -120,6 +120,7 @@ struct RuntimeState {
     contract3: contracts::assets::Assets,
     contract4: contracts::web3analytics::Web3Analytics,
     contract5: contracts::helloworld::HelloWorld,
+    contract6: contracts::secretcode::SecretCode,
     #[serde(serialize_with = "se_to_b64", deserialize_with = "de_from_b64")]
     light_client: ChainLightValidation,
     main_bridge: u64
@@ -195,6 +196,7 @@ lazy_static! {
             contract3: contracts::assets::Assets::new(),
             contract4: contracts::web3analytics::Web3Analytics::new(),
             contract5: contracts::helloworld::HelloWorld::new(),
+            contract6: contracts::secretcode::SecretCode::new(),
             light_client: ChainLightValidation::new(),
             main_bridge: 0
         })
@@ -1377,6 +1379,12 @@ fn handle_execution(state: &mut RuntimeState, pos: &TxRef,
                 ),
                 _ => TransactionStatus::BadCommand
             }
+        }, 
+        SECRET_CODE => {
+            match serde_json::from_slice(inner_data.as_slice()) {
+                Ok(cmd) => state.contract6.handle_command(&origin, pos, cmd),
+                _ => TransactionStatus::BadCommand 
+            }
         },
         _ => {
             println!("handle_execution: Skipped unknown contract: {}", contract_id);
@@ -1666,6 +1674,12 @@ fn query(q: types::SignedQuery) -> Result<Value, Value> {
                 accid_origin.clone(),
                 types::deopaque_query(opaque_query)
                     .map_err(|_| error_msg("Malformed request (system::Request)"))?.request)
+        ).unwrap(),
+        SECRET_CODE => serde_json::to_value(
+            state.contract6.handle_query(
+                accid_origin.as_ref(),
+                types::deopaque_query(opaque_query).map_err(|_| error_msg(("Malformed request (secretcode::Request)"))?.request)
+            )
         ).unwrap(),
         _ => return Err(Value::Null)
     };

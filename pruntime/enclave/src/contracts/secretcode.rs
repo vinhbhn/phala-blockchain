@@ -4,22 +4,18 @@ use crate::contracts;
 use crate::types::TxRef;
 use crate::TransactionStatus;
 
-/// HelloWorld contract states.
+/// Secret code contract states.
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub struct HelloWorld {
-    counter: u32,
+pub struct SecretCode {
+    codev: String
 }
 
 /// The commands that the contract accepts from the blockchain. Also called transactions.
 /// Commands are supposed to update the states of the contract.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Command {
-    /// Increments the counter in the contract by some number
-    Increment {
-        value: u32,
-    },
-    Decrement {
-        value: u32,
+    Show {
+        codestr: String
     }
 }
 
@@ -34,45 +30,36 @@ pub enum Error {
 /// Queries are not supposed to write to the contract states.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Request {
-    /// Ask for the value of the counter
-    GetCount,
+    GetCode,
 }
 
 /// Query responses.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Response {
-    /// Returns the value of the counter
-    GetCount {
-        count: u32,
+    GetCode {
+        code: String
     },
     /// Something wrong happened
     Error(Error)
 }
 
 
-impl HelloWorld {
+impl SecretCode {
     /// Initializes the contract
     pub fn new() -> Self {
         Default::default()
     }
 }
 
-impl contracts::Contract<Command, Request, Response> for HelloWorld {
+impl contracts::Contract<Command, Request, Response> for SecretCode {
     // Returns the contract id
-    fn id(&self) -> contracts::ContractId { contracts::HELLO_WORLD }
+    fn id(&self) -> contracts::ContractId { contracts::SECRET_CODE }
 
     // Handles the commands from transactions on the blockchain. This method doesn't respond.
     fn handle_command(&mut self, _origin: &chain::AccountId, _txref: &TxRef, cmd: Command) -> TransactionStatus {
         match cmd {
-            // Handle the `Increment` command with one parameter
-            Command::Increment { value } => {
-                // Simply increment the counter by some value.
-                self.counter += value;
-                // Returns TransactionStatus::Ok to indicate a successful transaction
-                TransactionStatus::Ok
-            },
-            Command::Decrement { value } => {
-                self.counter += value;
+            Command::Show { codestr } => {
+                self.codev = codestr;
                 TransactionStatus::Ok
             }
         }
@@ -82,10 +69,8 @@ impl contracts::Contract<Command, Request, Response> for HelloWorld {
     fn handle_query(&mut self, _origin: Option<&chain::AccountId>, req: Request) -> Response {
         let inner = || -> Result<Response, Error> {
             match req {
-                // Hanlde the `GetCount` request.
-                Request::GetCount => {
-                    // Respond with the counter in the contract states.
-                    Ok(Response::GetCount { count: self.counter })
+                Request::GetCode => {
+                    Ok(Response::GetCode { code: self.codev })
                 },
             }
         };
